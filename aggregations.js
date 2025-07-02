@@ -61,6 +61,24 @@ db.nominas.aggregate([
   },
   { $unwind: "$empleado" },
   {
+    $addFields: {
+      devengosValores: {
+        $map: {
+          input: "$contratos.devengos",
+          as: "d",
+          in: "$$d.valor"
+        }
+      },
+      deduccionesValores: {
+        $map: {
+          input: "$contratos.deducciones",
+          as: "d",
+          in: "$$d.valor"
+        }
+      }
+    }
+  },
+  {
     $project: {
       _id: 0,
       tipoDeId: "$empleado.tipoDeId.tipo",
@@ -68,21 +86,18 @@ db.nominas.aggregate([
       nombres: "$empleado.nombres",
       apellidos: "$empleado.apellidos",
       salarioBase: "$contratoInfo.salarioBase",
-      totalDevengos: {
-        $sum: "$contratos.devengos.valor"
-      },
-      totalDeducciones: {
-        $sum: "$contratos.deducciones.valor"
-      },
+      totalDevengos: { devengos: "$devengosValores" },
+      totalDeducciones: { deducciones: "$deduccionesValores" },
       netoAPagar: {
         $subtract: [
-          { $sum: "$contratos.devengos.valor" },
-          { $sum: "$contratos.deducciones.valor" }
+          { $add: ["$contratoInfo.salarioBase", { $sum: "$devengosValores" }] },
+          { $sum: "$deduccionesValores" }
         ]
       }
     }
   }
 ]);
+
 
 
 // Dado el id de un empleado y el id de una nómina, devolver detalladamente: Tipo y número de identificación, nombres, apellidos, salario base, deducciones (código, nombre, valor), devengos (código, nombre, valor).
